@@ -8,6 +8,7 @@ export class WebGLCanvas extends WebGL {
   private readonly MAX_VERTEX_AMOUNT = 50
 
   private triangles?: Triangles
+  private vertices: { x: number; y: number }[] = []
   private params = { vertexAmount: 10, minRadius: 0.25 }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -23,6 +24,9 @@ export class WebGLCanvas extends WebGL {
     const size = Math.min(window.innerWidth, window.innerHeight)
     this.setCanvas(size, size)
     this.setClearColor({ r: 0.1, g: 0.1, b: 0.1, a: 1 })
+
+    // 動的に頂点数を変更したいので、予め扱う最大の頂点数を保有させておく
+    this.vertices = [...Array(this.MAX_VERTEX_AMOUNT)].map(() => ({ x: 0, y: 0 }))
   }
 
   private createTriangles() {
@@ -36,20 +40,19 @@ export class WebGLCanvas extends WebGL {
   private createAttributes() {
     const { vertexAmount, minRadius } = this.params
 
-    // 動的に頂点数を変更したいので、予め扱う最大の頂点数を保有させておく
-    const vertices = [...Array(this.MAX_VERTEX_AMOUNT)].map(() => ({ x: 0, y: 0 }))
-
     const boundingArea = {
       x: { min: Number.MAX_SAFE_INTEGER, max: Number.MIN_SAFE_INTEGER },
       y: { min: Number.MAX_SAFE_INTEGER, max: Number.MIN_SAFE_INTEGER },
     }
+
     for (let i = 0; i < vertexAmount; i++) {
+      // 頂点の位置を求める
       const angle = Math.PI * 2 * (i / vertexAmount) + Math.PI / 2
       const r = i % 2 === 0 ? 0.5 : minRadius
       const x = r * Math.cos(angle)
       const y = r * Math.sin(angle)
-      vertices[i] = { x, y }
-
+      this.vertices[i] = { x, y }
+      // 包絡矩形を求める
       if (x < boundingArea.x.min) boundingArea.x.min = x
       if (boundingArea.x.max < x) boundingArea.x.max = x
       if (y < boundingArea.y.min) boundingArea.y.min = y
@@ -64,8 +67,8 @@ export class WebGLCanvas extends WebGL {
 
     const position: number[] = []
     const uv: number[] = []
-    vertices.forEach((vertex, i) => {
-      const next = vertices.at((i + 1) % this.params.vertexAmount)!
+    this.vertices.forEach((vertex, i) => {
+      const next = this.vertices.at((i + 1) % vertexAmount)!
       // prettier-ignore
       position.push(
         vertex.x, vertex.y, 0.0,
