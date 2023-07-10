@@ -1,7 +1,8 @@
-abstract class Program {
+export abstract class Program {
   private program: WebGLProgram
   private uniforms: { [name in string]: { location: WebGLUniformLocation | null; setter?: (value: any) => void } } = {}
   protected vertexCount?: number
+  private vbo: { [name in string]: WebGLBuffer | null } = {}
 
   constructor(protected gl: WebGLRenderingContext, vertexShader: string, fragmentShader: string) {
     const vs = this.createShaderObject(vertexShader, 'vertex')
@@ -49,7 +50,7 @@ abstract class Program {
    * @param name 一意な名前
    * @param datas BufferArray
    * @param count 1組になるデータの数
-   * @param usage データの扱い方
+   * @param usage データの扱い方（attributeの更新頻度）
    */
   setAttribute(name: string, datas: BufferSource, count: number, usage: 'STATIC_DRAW' | 'DYNAMIC_DRAW' | 'STREAM_DRAW' = 'STATIC_DRAW') {
     if (!this.vertexCount) {
@@ -64,6 +65,19 @@ abstract class Program {
     const location = gl.getAttribLocation(this.program, name)
     gl.enableVertexAttribArray(location)
     gl.vertexAttribPointer(location, count, gl.FLOAT, false, 0, 0)
+
+    this.vbo[name] = vbo
+  }
+
+  /**
+   * attributeを更新する
+   * @param name 名前
+   * @param datas 更新データ
+   */
+  updateAttribute(name: string, datas: BufferSource) {
+    const gl = this.gl
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo[name])
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, datas)
   }
 
   /**
@@ -113,18 +127,25 @@ abstract class Program {
   draw() {
     this.gl.useProgram(this.program)
   }
-}
 
-// --------------------
-export class Triangles extends Program {
-  constructor(gl: WebGLRenderingContext, vertexShader: string, fragmentShader: string) {
-    super(gl, vertexShader, fragmentShader)
+  /**
+   * vboを削除する
+   * @param name attribute名と一致。指定がなければすべて削除する。
+   */
+  deleteVBO(name?: string) {
+    if (name) {
+      this.gl.deleteBuffer(this.vbo[name])
+    } else {
+      Object.values(this.vbo).forEach((vbo) => this.gl.deleteBuffer(vbo))
+    }
   }
 
-  draw() {
-    if (!this.vertexCount) return
+  deleteProgram() {
+    this.gl.deleteProgram(this.program)
+  }
 
-    super.draw()
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertexCount)
+  dispose() {
+    this.deleteVBO()
+    this.deleteProgram()
   }
 }

@@ -1,18 +1,19 @@
-import { Triangles } from './Program'
+import { Triangles } from './Triangles'
 import { WebGL } from './WebGL'
 import vertexShader from './shader/vertexShader.glsl'
 import fragmentShader from './shader/fragmentShader.glsl'
 import GUI from 'lil-gui'
 
 export class WebGLCanvas extends WebGL {
-  private triangles!: Triangles
-  private elapsedTime = 0
-  private default = { vertexAmount: 10, minRadius: 0.25 }
+  private readonly MAX_VERTEX_AMOUNT = 50
+
+  private triangles?: Triangles
+  private params = { vertexAmount: 10, minRadius: 0.25 }
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas)
     this.init()
-    this.createTriangles(this.default.vertexAmount, this.default.minRadius)
+    this.createTriangles()
     this.setUniforms()
     this.setGui()
     this.render()
@@ -24,21 +25,30 @@ export class WebGLCanvas extends WebGL {
     this.setClearColor({ r: 0.1, g: 0.1, b: 0.1, a: 1 })
   }
 
-  private createTriangles(vertexAmount: number, minRadius: number) {
+  private createTriangles() {
     this.triangles = new Triangles(this.gl, vertexShader, fragmentShader)
+    const { position, uv } = this.createAttributes()
 
-    const vertices: { x: number; y: number }[] = []
+    this.triangles.setAttribute('position', position, 3, 'DYNAMIC_DRAW')
+    this.triangles.setAttribute('uv', uv, 2, 'DYNAMIC_DRAW')
+  }
+
+  private createAttributes() {
+    const { vertexAmount, minRadius } = this.params
+
+    // 動的に頂点数を変更したいので、予め扱う最大の頂点数を保有させておく
+    const vertices = [...Array(this.MAX_VERTEX_AMOUNT)].map(() => ({ x: 0, y: 0 }))
+
     const boundingArea = {
       x: { min: Number.MAX_SAFE_INTEGER, max: Number.MIN_SAFE_INTEGER },
       y: { min: Number.MAX_SAFE_INTEGER, max: Number.MIN_SAFE_INTEGER },
     }
     for (let i = 0; i < vertexAmount; i++) {
       const angle = Math.PI * 2 * (i / vertexAmount) + Math.PI / 2
-      // const r = 0.5
       const r = i % 2 === 0 ? 0.5 : minRadius
       const x = r * Math.cos(angle)
       const y = r * Math.sin(angle)
-      vertices.push({ x, y })
+      vertices[i] = { x, y }
 
       if (x < boundingArea.x.min) boundingArea.x.min = x
       if (boundingArea.x.max < x) boundingArea.x.max = x
@@ -55,12 +65,12 @@ export class WebGLCanvas extends WebGL {
     const position: number[] = []
     const uv: number[] = []
     vertices.forEach((vertex, i) => {
-      const next = vertices.at((i + 1) % vertices.length)!
+      const next = vertices.at((i + 1) % this.params.vertexAmount)!
       // prettier-ignore
       position.push(
         vertex.x, vertex.y, 0.0,
-        next.x, next.y, 0.0,
-        0.0, 0.0, 0.0
+          next.x,   next.y, 0.0,
+             0.0,      0.0, 0.0
       )
       // prettier-ignore
       uv.push(
@@ -70,39 +80,39 @@ export class WebGLCanvas extends WebGL {
       )
     })
 
-    this.triangles.setAttribute('position', new Float32Array(position), 3)
-    this.triangles.setAttribute('uv', new Float32Array(uv), 2)
+    return { position: new Float32Array(position), uv: new Float32Array(uv) }
+  }
+
+  private updateAttributes() {
+    const { position, uv } = this.createAttributes()
+    this.triangles?.updateAttribute('position', position)
+    this.triangles?.updateAttribute('uv', uv)
   }
 
   private setUniforms() {
-    this.triangles.setUniform('uTime', '1f', 0)
+    this.triangles?.setUniform('uTime', '1f', 0)
   }
 
   private setGui() {
-    const obj = { vertexAmount: this.default.vertexAmount, minRadius: this.default.minRadius }
-    const change = () => {
-      this.createTriangles(obj.vertexAmount, obj.minRadius)
-      this.setUniforms()
-    }
-
     const gui = new GUI()
     gui
-      .add(obj, 'vertexAmount', 6, 50, 2)
+      .add(this.params, 'vertexAmount', 6, this.MAX_VERTEX_AMOUNT, 2)
       .name('頂点数')
-      .onChange(() => change())
+      .onChange(() => this.updateAttributes())
     gui
-      .add(obj, 'minRadius', 0.1, 0.5, 0.01)
+      .add(this.params, 'minRadius', 0.1, 0.5, 0.01)
       .name('スター')
-      .onChange(() => change())
+      .onChange(() => this.updateAttributes())
   }
 
   private render = () => {
     requestAnimationFrame(this.render)
 
     this.setClearColor()
-    this.elapsedTime += 0.01
-    // this.triangles.addUniformValue('uTime', 0.01)
-    this.triangles.updateUniform('uTime', this.elapsedTime)
-    this.triangles.draw()
+
+    this.triangles?.addUniformValue('uTime', 0.01)
+    // 描画する頂点数を指定する
+    // ひとつの三角形は3つの頂点からなるので x3 する
+    this.triangles?.drawRange(this.params.vertexAmount * 3)
   }
 }
