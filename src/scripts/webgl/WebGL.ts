@@ -34,4 +34,8 @@ export abstract class WebGL {
     this.gl.clearColor(this.clearColor.r, this.clearColor.g, this.clearColor.b, this.clearColor.a)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT)
   }
+
+  protected setProgram(program: WebGLProgram) {
+    this.gl.useProgram(program)
+  }
 }

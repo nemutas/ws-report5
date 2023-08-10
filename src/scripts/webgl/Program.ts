@@ -39,10 +39,15 @@ export abstract class Program {
     gl.linkProgram(program)
     gl.deleteShader(vs)
     gl.deleteShader(fs)
+
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? 'error')
 
     gl.useProgram(program)
     return program
+  }
+
+  get PROGRAM() {
+    return this.program
   }
 
   /**
@@ -122,10 +127,6 @@ export abstract class Program {
     if (typeof origin === 'number') {
       this.updateUniform(name, origin + value)
     }
-  }
-
-  draw() {
-    this.gl.useProgram(this.program)
   }
 
   /**

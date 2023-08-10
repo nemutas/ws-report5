@@ -5,14 +5,10 @@ export class Triangles extends Program {
     super(gl, vertexShader, fragmentShader)
   }
 
-  draw() {
-    if (!this.vertexCount) return
-    super.draw()
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertexCount)
-  }
+  draw(vertexCount?: number) {
+    const count = vertexCount ?? this.vertexCount
+    if (!count) return
 
-  drawRange(vertexCount: number) {
-    super.draw()
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, vertexCount)
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, count)
   }
 }

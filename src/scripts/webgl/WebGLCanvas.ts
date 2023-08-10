@@ -7,15 +7,14 @@ import GUI from 'lil-gui'
 export class WebGLCanvas extends WebGL {
   private readonly MAX_VERTEX_AMOUNT = 50
 
-  private triangles?: Triangles
+  private triangles: Triangles
   private vertices: { x: number; y: number }[] = []
   private params = { vertexAmount: 10, minRadius: 0.25 }
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas)
     this.init()
-    this.createTriangles()
-    this.setUniforms()
+    this.triangles = this.createTriangles()
     this.setGui()
     this.render()
   }
@@ -30,11 +29,17 @@ export class WebGLCanvas extends WebGL {
   }
 
   private createTriangles() {
-    this.triangles = new Triangles(this.gl, vertexShader, fragmentShader)
+    const triangles = new Triangles(this.gl, vertexShader, fragmentShader)
     const { position, uv } = this.createAttributes()
 
-    this.triangles.setAttribute('position', position, 3, 'DYNAMIC_DRAW')
-    this.triangles.setAttribute('uv', uv, 2, 'DYNAMIC_DRAW')
+    triangles.setAttribute('position', position, 3, 'DYNAMIC_DRAW')
+    triangles.setAttribute('uv', uv, 2, 'DYNAMIC_DRAW')
+
+    triangles.setUniform('uTime', '1f', 0)
+
+    this.setProgram(triangles.PROGRAM)
+
+    return triangles
   }
 
   private createAttributes() {
@@ -88,12 +93,8 @@ export class WebGLCanvas extends WebGL {
 
   private updateAttributes() {
     const { position, uv } = this.createAttributes()
-    this.triangles?.updateAttribute('position', position)
-    this.triangles?.updateAttribute('uv', uv)
-  }
-
-  private setUniforms() {
-    this.triangles?.setUniform('uTime', '1f', 0)
+    this.triangles.updateAttribute('position', position)
+    this.triangles.updateAttribute('uv', uv)
   }
 
   private setGui() {
@@ -113,9 +114,9 @@ export class WebGLCanvas extends WebGL {
 
     this.setClearColor()
 
-    this.triangles?.addUniformValue('uTime', 0.01)
+    this.triangles.addUniformValue('uTime', 0.01)
     // 描画する頂点数を指定する
     // ひとつの三角形は3つの頂点からなるので x3 する
-    this.triangles?.drawRange(this.params.vertexAmount * 3)
+    this.triangles.draw(this.params.vertexAmount * 3)
   }
 }
